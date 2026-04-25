@@ -10,12 +10,14 @@ add_library(http_server
     src/ssl/ssl_context.cpp
     src/ssl/ssl_connection.cpp
     src/ssl/ssl_config.cpp
+    src/router/router.cpp
 )
 
 target_include_directories(http_server
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include/http_server
         ${CMAKE_CURRENT_SOURCE_DIR}/include/ssl
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/router
 )
 
 target_link_libraries(http_server
@@ -38,3 +40,4 @@ if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     )
 endif()
 
+# [ cloc --include-lang="HTML,JavaScript,CSS" . ]  [ cloc --include-lang="C,C++,C/C++ Header" . ]

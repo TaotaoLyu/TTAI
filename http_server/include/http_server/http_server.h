@@ -8,6 +8,7 @@
 #include "http_context.h"
 #include "ssl_connection.h"
 #include "http_response.h"
+#include "router.h"
 
 namespace http
 {
@@ -119,12 +120,12 @@ namespace http
                     // send(conn,"HTTP/1.1 200 OK\r\nContent-Length:20\r\n\r\n{\"name\":\"taotaoLyu\"}");
 
                     // debug
-                    // if (useSsl_)
-                    // {
-                    //     tcpConnToSslConn_[conn]->shutdown();
-                    //     conn->send(tcpConnToSslConn_[conn]->getWriteBuffer());
-                    // }
-                    // conn->shutdown();
+                    if (useSsl_)
+                    {
+                        tcpConnToSslConn_[conn]->shutdown();
+                        conn->send(tcpConnToSslConn_[conn]->getWriteBuffer());
+                    }
+                    conn->shutdown();
                 }
                 else
                 {
@@ -145,16 +146,37 @@ namespace http
         {
 
             HttpResponse httpResponse;
-            handleRequest(httpRequest,&httpResponse);
-            send(httpRequest.conn_,httpResponse);
-            
+            handleRequest(httpRequest, &httpResponse);
+            // std::cout<<std::string(httpResponse)<<std::endl;
+            send(httpRequest.conn_, httpResponse);
+
 
             // if short connection throw exception
+        }
+        void Get(const std::string& path,router::Router::HandlerCallback handlerCallback)
+        {
+            router_.registerHandler(HttpRequest::kGet,path,handlerCallback);            
+
+        }
+        void Get(const std::regex& reg,router::Router::HandlerCallback handlerCallback)
+        {
+            router_.registerHandler(HttpRequest::kGet,reg,handlerCallback);            
+
+        }
+        void Post(const std::string& path,router::Router::HandlerCallback handlerCallback)
+        {
+            router_.registerHandler(HttpRequest::kPost,path,handlerCallback);            
+        }
+        void Post(const std::regex& reg,router::Router::HandlerCallback handlerCallback)
+        {
+            router_.registerHandler(HttpRequest::kPost,reg,handlerCallback);            
         }
         void handleRequest(const HttpRequest &req, HttpResponse *resp)
         {
 
             // router to do
+
+            router_.route(req,resp);
         }
 
     private:
@@ -167,6 +189,7 @@ namespace http
         ssl::SslContext sslContext_;
         std::unordered_map<muduo::net::TcpConnectionPtr, ssl::SslConectionPtr> tcpConnToSslConn_;
         std::function<void(HttpRequest &, HttpResponse *)> httpCallback_;
+        router::Router router_;
     };
 
 }
