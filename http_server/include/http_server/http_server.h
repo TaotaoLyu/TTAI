@@ -12,15 +12,14 @@
 
 namespace http
 {
-    const char *BadResponseLine = "HTTP/1.1 400 Bad Request\r\n\r\n";
     using HttpCallback = std::function<void(HttpRequest &, HttpResponse *)>;
     class HttpServer
     {
     public:
         HttpServer(uint16_t port,
                    std::string name,
-                   HttpCallback httpCallback = nullptr,
                    uint32_t threadNum = 5,
+                   HttpCallback httpCallback = nullptr,
                    muduo::net::TcpServer::Option option = muduo::net::TcpServer::kReusePort)
             : name_(name),
               httpCallback_(std::bind(&HttpServer::handleRequest, this, std::placeholders::_1, std::placeholders::_2)),
@@ -92,47 +91,62 @@ namespace http
             // std::string message = buffer->retrieveAllAsString();
             // std::cout << message;
             // std::cout.flush();
+            const char *BadResponseLine = "HTTP/1.1 404 Bad Request\r\n\r\n";
 
-            HttpContext *httpContext = boost::any_cast<HttpContext>(conn->getMutableContext());
-            if (useSsl_ && !tcpConnToSslConn_[conn]->iskEstablished())
+            try
             {
-                // handshake
-                tcpConnToSslConn_[conn]->handShake(buffer);
-                conn->send(tcpConnToSslConn_[conn]->getWriteBuffer());
-            }
-            while (true)
-            {
-                if (useSsl_)
+                HttpContext *httpContext = boost::any_cast<HttpContext>(conn->getMutableContext());
+                if (useSsl_ && !tcpConnToSslConn_[conn]->iskEstablished())
                 {
-                    buffer = tcpConnToSslConn_[conn]->decrypt(buffer);
+                    // handshake
+                    tcpConnToSslConn_[conn]->handShake(buffer);
+                    conn->send(tcpConnToSslConn_[conn]->getWriteBuffer());
                 }
-                if (httpContext->ParseRequest(buffer, timeStamp) == false)
+                while (true)
                 {
-                    send(conn, BadResponseLine);
-                    conn->shutdown();
-                }
-                if (httpContext->isAll())
-                {
-                    // process request=>reponse and send
-                    httpContext->print(); // debug
-                    onRequest(httpContext->getHttpRequest());
-                    httpContext->clear();
-                    // send(conn,"HTTP/1.1 200 OK\r\nContent-Length:20\r\n\r\n{\"name\":\"taotaoLyu\"}");
-
-                    // debug
                     if (useSsl_)
                     {
-                        tcpConnToSslConn_[conn]->shutdown();
-                        conn->send(tcpConnToSslConn_[conn]->getWriteBuffer());
+                        buffer = tcpConnToSslConn_[conn]->decrypt(buffer);
                     }
-                    conn->shutdown();
+                    if (httpContext->ParseRequest(buffer, timeStamp) == false)
+                    {
+                        send(conn, BadResponseLine);
+                        conn->shutdown();
+                    }
+                    if (httpContext->isAll())
+                    {
+                        // process request=>reponse and send
+                        httpContext->print(); // debug
+                        onRequest(httpContext->getHttpRequest());
+                        httpContext->clear();
+                        // send(conn,"HTTP/1.1 200 OK\r\nContent-Length:20\r\n\r\n{\"name\":\"taotaoLyu\"}");
+
+                        // debug
+                        // if (useSsl_)
+                        // {
+                        //     tcpConnToSslConn_[conn]->shutdown();
+                        //     conn->send(tcpConnToSslConn_[conn]->getWriteBuffer());
+                        // }
+                        // conn->shutdown();
+                    }
+                    else
+                    {
+                        if (useSsl_ && tcpConnToSslConn_[conn]->isDecryptionComplete() == false)
+                            continue;
+                        break;
+                    }
                 }
-                else
+            }
+            catch (const std::exception &e)
+            {
+                LOG_ERROR << e.what();
+                send(conn, BadResponseLine);
+                if (useSsl_)
                 {
-                    if (useSsl_ && tcpConnToSslConn_[conn]->isDecryptionComplete() == false)
-                        continue;
-                    break;
+                    tcpConnToSslConn_[conn]->shutdown();
+                    conn->send(tcpConnToSslConn_[conn]->getWriteBuffer());
                 }
+                conn->shutdown();
             }
         }
         void send(const muduo::net::TcpConnectionPtr &conn, const std::string &message)
@@ -150,41 +164,47 @@ namespace http
             // std::cout<<std::string(httpResponse)<<std::endl;
             send(httpRequest.conn_, httpResponse);
 
-
             // if short connection throw exception
-        }
-        void Get(const std::string& path,router::Router::HandlerCallback handlerCallback)
-        {
-            router_.registerHandler(HttpRequest::kGet,path,handlerCallback);            
 
+            if (httpRequest.headers_.count("Connection") && httpRequest.headers_["Connection"] == "close")
+            {
+                throw std::runtime_error("client want to close connection");
+            }
         }
-        void Get(const std::regex& reg,router::Router::HandlerCallback handlerCallback)
+        void Get(const std::string &path, router::Router::HandlerCallback handlerCallback)
         {
-            router_.registerHandler(HttpRequest::kGet,reg,handlerCallback);            
-
+            router_.registerHandler(HttpRequest::kGet, path, handlerCallback);
         }
-        void Post(const std::string& path,router::Router::HandlerCallback handlerCallback)
+        void Get(const std::regex &reg, router::Router::HandlerCallback handlerCallback)
         {
-            router_.registerHandler(HttpRequest::kPost,path,handlerCallback);            
+            router_.registerHandler(HttpRequest::kGet, reg, handlerCallback);
         }
-        void Post(const std::regex& reg,router::Router::HandlerCallback handlerCallback)
+        void Post(const std::string &path, router::Router::HandlerCallback handlerCallback)
         {
-            router_.registerHandler(HttpRequest::kPost,reg,handlerCallback);            
+            router_.registerHandler(HttpRequest::kPost, path, handlerCallback);
+        }
+        void Post(const std::regex &reg, router::Router::HandlerCallback handlerCallback)
+        {
+            router_.registerHandler(HttpRequest::kPost, reg, handlerCallback);
         }
         void handleRequest(const HttpRequest &req, HttpResponse *resp)
         {
 
             // router to do
 
-            router_.route(req,resp);
+            if (router_.route(req, resp) == false)
+            {
+                throw std::runtime_error("not found route");
+            }
         }
 
     private:
         std::string name_;
         uint32_t threadNum_;
         uint16_t port_;
-        muduo::net::TcpServer server_;
         muduo::net::EventLoop eventLoop_;
+
+        muduo::net::TcpServer server_;
         bool useSsl_;
         ssl::SslContext sslContext_;
         std::unordered_map<muduo::net::TcpConnectionPtr, ssl::SslConectionPtr> tcpConnToSslConn_;
