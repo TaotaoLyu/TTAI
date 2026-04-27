@@ -37,7 +37,7 @@ public:
             }
         }
         template <class... Args>
-        sql::ResultSet *executeUpdate(const std::string &sql, Args &&...args)
+        int executeUpdate(const std::string &sql, Args &&...args)
         {
             try
             {

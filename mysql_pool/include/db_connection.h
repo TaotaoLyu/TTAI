@@ -50,7 +50,7 @@ namespace db
         }
 
         template <class... Args>
-        sql::ResultSet *executeUpdate(const std::string &sql, Args &&...args)
+        int executeUpdate(const std::string &sql, Args &&...args)
         {
 
             // std::unique_ptr<sql::Statement> stem(conn_->createStatement());
@@ -74,9 +74,16 @@ namespace db
         {
         }
         template <class T, class... Args>
-        void bindParams(sql::PreparedStatement *pstem, int index, T &&value, Args &&...args)
+        void bindParams(sql::PreparedStatement *pstem, int index, T value, Args &&...args)
         {
             pstem->setString(index, std::to_string(std::forward<T>(value)));
+            bindParams(pstem, std::forward<Args>(args)...);
+        }
+
+        template <class... Args>
+        void bindParams(sql::PreparedStatement *pstem, int index, const std::string &value, Args &&...args)
+        {
+            pstem->setString(index, value);
             bindParams(pstem, std::forward<Args>(args)...);
         }
         std::shared_ptr<sql::Connection> conn_;
