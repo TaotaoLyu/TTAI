@@ -40,6 +40,25 @@ namespace http
             body_.swap(httpRequest->body_);
             std::swap(receive_time_, httpRequest->receive_time_);
         }
+        std::string getSessionId()const 
+        {
+            auto it=headers_.find("Cookie");
+            if(it!=headers_.end())
+            {
+                try 
+                {
+                auto& se=it->second;
+                auto pos=se.find("=");
+                return se.substr(pos+1);
+                }
+                catch(...)
+                {
+                    // throw std::runtime_error("cokkie not have session");
+                    return "=";
+                }
+            }
+            return "=";
+        }
         Method method_ = kInvalid;
         std::string path_;
         std::string version_ = "Unknown";
