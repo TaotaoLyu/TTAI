@@ -114,7 +114,7 @@ namespace ssl
             {
             case SSL_ERROR_WANT_READ:
             case SSL_ERROR_WANT_WRITE:
-                LOG_ERROR << "SSL handshake not complete";
+                // LOG_ERROR << "SSL handshake not complete";
                 break; // normal, need more data to handshake
             default:
                 char errBuf[4096];

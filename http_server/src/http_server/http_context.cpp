@@ -158,6 +158,8 @@ namespace http
         std::string version;
         if (!(iss >> method >> path >> version))
             return false;
+
+        // std::cout<<"method: "<<method<<std::endl;
         if (setMethod(method) == false ||
             setPath(path) == false ||
             setVersion(version) == false)
