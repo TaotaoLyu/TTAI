@@ -24,14 +24,14 @@ namespace chat
 
             if (IsValid(user) && IsValid(password))
             {
-                if (userService_->isUserExist(user))
+                if (databaseService_->isUserExist(user))
                 {
                     // returnBody
-                    auto ret = userService_->getUserInfo(user);
+                    auto ret = databaseService_->getUserInfoFromName(user);
                     if (password == ret.password_)
                     {
                         std::string cookie = "sessionId=" + ret.sessionId_;
-                        cookie += "; Expires=Fri, 01 Jan 2038 00:00:00 GMT; Path=/; Secure; HttpOnly";
+                        cookie += "; Expires=Fri, 01 Jan 2038 00:00:00 GMT; Path=/; HttpOnly; SameSite=None; Secure";
                         returnBody["status"] = 0;
                         resp->headers_["Set-Cookie"] = std::move(cookie);
                     }

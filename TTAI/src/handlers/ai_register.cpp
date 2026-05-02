@@ -4,7 +4,7 @@
 namespace chat
 {
 
-    static std::string generateSessionId(size_t length = 10)
+    static std::string generateSessionId(size_t length = 20)
     {
         const std::string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         std::random_device rd;
@@ -36,6 +36,7 @@ namespace chat
 
         try
         {
+            std::this_thread::sleep_for(std::chrono::seconds(10));
             json body = json::parse(req.body_);
             std::string name = body.value("user", "");
             std::string password = body.value("password", "");
@@ -43,7 +44,7 @@ namespace chat
             if (IsValid(name) && IsValid(password))
             {
 
-                if (userService_->isUserExist(name))
+                if (databaseService_->isUserExist(name))
                 {
                     ret["status"] = 1;
                 }
@@ -52,13 +53,13 @@ namespace chat
                     std::string sessionId;
                     while (true)
                     {
-                        sessionId = generateSessionId(10);
-                        if (userService_->isSessionExist(sessionId) == false)
+                        sessionId = generateSessionId(20);
+                        if (databaseService_->isSessionExist(sessionId) == false)
                             break;
                     }
-                    userService_->insertUser(name, password, sessionId);
+                    databaseService_->insertUser(name, password, sessionId);
                     std::string cookie = "sessionId=" + sessionId;
-                    cookie += "; Expires=Fri, 01 Jan 2038 00:00:00 GMT; Path=/; Secure; HttpOnly";
+                    cookie += "; Expires=Fri, 01 Jan 2038 00:00:00 GMT; Path=/; HttpOnly; SameSite=None; Secure";
                     resp->headers_["Set-Cookie"] = std::move(cookie);
                     ret["status"] = 0;
                 }
