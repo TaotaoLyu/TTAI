@@ -12,8 +12,11 @@ namespace http
         {
             std::ostringstream oss;
             oss << "HTTP/" << version_ << " " << status_ << " " << describes_ << "\r\n";
-            if (headers_.count("Content-Length") == 0)
+            if (headers_["Content-Type"] != "text/event-stream")
+            {
                 headers_["Content-Length"] = std::to_string(body_.size());
+            }
+            // headers_["Content-Length"] = std::to_string(body_.size());
             for (auto &[key, value] : headers_)
             {
                 oss << key << ": " << value << "\r\n";
